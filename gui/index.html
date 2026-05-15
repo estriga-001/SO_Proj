@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Dashboard de monitorização da Estação Autónoma de Exploração Planetária — Projeto de Sistemas Operativos 2025/2026">
+  <title>Estação Planetária — Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔴</text></svg>">
+</head>
+<body>
+
+  <canvas id="stars-canvas"></canvas>
+
+  <div class="app">
+
+    <!-- ===== HEADER ===== -->
+    <header class="header">
+      <div class="header-left">
+        <div class="header-logo">🛰️</div>
+        <div class="header-title">
+          <h1>Estação Autónoma de Exploração Planetária</h1>
+          <p>Projeto de Sistemas Operativos — 2025/2026</p>
+        </div>
+      </div>
+      <div class="header-controls">
+        <div class="speed-control" data-tooltip="Velocidade da simulação">
+          <span>🕐</span>
+          <input type="range" id="speed-slider" min="1" max="20" value="5">
+          <span id="speed-label">5×</span>
+        </div>
+        <div id="analysis-badge" class="analysis-indicator active">
+          <span>🔬</span> Análise: <strong id="analysis-state-text">ATIVA</strong>
+        </div>
+        <div id="system-status" class="status-badge online">
+          <span class="dot"></span>
+          <span id="status-text">Parado</span>
+        </div>
+        <button class="btn btn-primary" id="btn-start" onclick="window.sim.start()">▶ Iniciar</button>
+        <button class="btn btn-warning" id="btn-toggle" onclick="window.sim.toggleAnalysis()" disabled>⏯ Toggle Análise</button>
+        <button class="btn btn-danger" id="btn-stop" onclick="window.sim.stop()" disabled>⏹ Terminar</button>
+      </div>
+    </header>
+
+    <!-- ===== MAIN GRID ===== -->
+    <div class="main-grid">
+
+      <!-- --- Left: Drones --- -->
+      <div class="card fade-in">
+        <div class="card-header">
+          <h2>
+            <span class="icon" style="background: rgba(78,205,196,0.15); color: var(--drone-color);">🚁</span>
+            Drones Exploratórios
+          </h2>
+          <span style="font-size:0.7rem; color: var(--text-muted);">×3</span>
+        </div>
+        <div class="card-body">
+          <div class="entity-list" id="drone-list">
+            <!-- Drone cards rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- --- Center: Board + Stats --- -->
+      <div class="center-column">
+
+        <!-- Board -->
+        <div class="card fade-in">
+          <div class="card-header">
+            <h2>
+              <span class="icon" style="background: rgba(245,166,35,0.15); color: var(--sample-color);">📋</span>
+              Tabuleiro de Amostras
+            </h2>
+            <span id="board-count-badge" style="font-size:0.7rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">0 / 10</span>
+          </div>
+          <div class="card-body">
+            <div class="board-grid" id="board-grid">
+              <!-- Board slots rendered by JS -->
+            </div>
+          </div>
+          <div class="capacity-bar-wrapper">
+            <div class="capacity-bar-label">
+              <span>Ocupação</span>
+              <span id="capacity-pct">0%</span>
+            </div>
+            <div class="capacity-bar">
+              <div class="capacity-bar-fill" id="capacity-fill" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="card fade-in">
+          <div class="card-header">
+            <h2>
+              <span class="icon" style="background: rgba(102,126,234,0.15); color: var(--accent-blue);">📊</span>
+              Estatísticas
+            </h2>
+          </div>
+          <div class="card-body">
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value" id="stat-created">0</div>
+                <div class="stat-label">Criadas</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-deposited">0</div>
+                <div class="stat-label">Depositadas</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-analyzed">0</div>
+                <div class="stat-label">Analisadas</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-wait-full">0</div>
+                <div class="stat-label">Esperas (Cheio)</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-wait-empty">0</div>
+                <div class="stat-label">Esperas (Vazio)</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-uptime">00:00</div>
+                <div class="stat-label">Tempo Ativo</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Architecture mini -->
+        <div class="card fade-in">
+          <div class="card-header">
+            <h2>
+              <span class="icon" style="background: rgba(118,75,162,0.15); color: var(--accent-purple);">🏗️</span>
+              Arquitetura
+            </h2>
+          </div>
+          <div class="arch-diagram">
+            <div class="arch-node main">main (processo principal)</div>
+            <div class="arch-connector"></div>
+            <div class="arch-fork">
+              <div class="arch-branch">
+                <div class="arch-node exploration">fork() → exploração</div>
+                <div class="arch-connector"></div>
+                <div style="font-size:0.6rem; color: var(--drone-color); font-family: 'JetBrains Mono', monospace;">3 threads (drones)</div>
+              </div>
+              <div class="arch-branch">
+                <div class="arch-node analysis">fork() → análise</div>
+                <div class="arch-connector"></div>
+                <div style="font-size:0.6rem; color: var(--analyzer-color); font-family: 'JetBrains Mono', monospace;">2 threads (braços)</div>
+              </div>
+            </div>
+            <div class="arch-connector"></div>
+            <div class="arch-node" style="border-color: rgba(245,166,35,0.4); color: var(--sample-color); font-size: 0.6rem;">
+              shared memory (POSIX) — mutex + cond vars
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- --- Right: Analyzers --- -->
+      <div class="card fade-in">
+        <div class="card-header">
+          <h2>
+            <span class="icon" style="background: rgba(240,147,251,0.15); color: var(--analyzer-color);">🦾</span>
+            Braços Robóticos
+          </h2>
+          <span style="font-size:0.7rem; color: var(--text-muted);">×2</span>
+        </div>
+        <div class="card-body">
+          <div class="entity-list" id="analyzer-list">
+            <!-- Analyzer cards rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== LOG PANEL ===== -->
+    <div class="log-panel fade-in">
+      <div class="card-header">
+        <h2>
+          <span class="icon" style="background: rgba(255,255,255,0.05); color: var(--text-secondary);">📜</span>
+          Log do Sistema
+        </h2>
+        <button class="btn" onclick="document.getElementById('log-body').innerHTML = ''" style="font-size:0.7rem; padding: 0.3rem 0.6rem;">🗑 Limpar</button>
+      </div>
+      <div class="log-body" id="log-body">
+        <!-- Log entries rendered by JS -->
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
