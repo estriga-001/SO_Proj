@@ -1,0 +1,102 @@
+PROJETO SO – FASE 1 (SEM INTERNET)
+
+As respostas devem ser escritas apenas dentro dos parêntesis retos => [Resposta]
+
+========================================
+IDENTIFICAÇÃO
+========================================
+
+Grupo: [Resposta]
+
+========================================
+1. DESCRIÇÃO DO PROBLEMA
+========================================
+
+Faça um resumo do problema que pretende resolver:
+
+[Resposta]
+
+========================================
+2. MODELAÇÃO DO SISTEMA
+========================================
+
+Entidades identificadas e como serão implementadas (processo, thread, outro):
+
+[
+Entidade 1:
+Implementação 1:
+Justificação 1:
+Entidade 2:
+Implementação 2:
+Justificação 2:
+...
+]
+
+========================================
+3. PARTILHA DE DADOS
+========================================
+
+Há necessidade de partilha de recursos? Quais?
+
+[Resposta]
+
+Que opções terá para partilha de dados?
+
+[Resposta]
+
+Vai optar por usar memória partilhada?
+[ ] Sim   [ ] Não
+
+Se sim:
+* Que dados serão partilhados nessa memória partilhada?
+[Resposta]
+* Como será estruturada essa memória partilhada?
+[Resposta]
+
+
+========================================
+4. SINCRONIZAÇÃO
+========================================
+
+Que mecanismos serão utilizados e com que objetivo?
+(Semáforos, Mutex, Outros ...)
+
+[
+Mecanismo 1:
+Objetivo 1:
+Mecanismo 2:
+Objetivo 2:
+...
+]
+
+---
+
+Que problemas pretende evitar e em que situações?
+(e.g., condições de corrida, deadlocks, starvation)
+
+[Resposta]
+
+========================================
+6. RISCOS E DIFICULDADES
+========================================
+
+Antecipa que possa surgir algum problema (quais)?
+
+[
+Problema 1:
+Problema 2:
+...
+]
+
+========================================
+7. DISCUSSÃO
+========================================
+
+Indique o grau de confiança na solução proposta:
+
+[ ] Baixo
+[ ] Médio
+[ ] Elevado
+
+Justifique:
+[Resposta]

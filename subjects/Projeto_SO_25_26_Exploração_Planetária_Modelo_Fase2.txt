@@ -1,0 +1,101 @@
+PROJETO SO – FASE 2 (COM INTERNET / IA)
+
+As respostas devem ser escritas apenas dentro dos parêntesis retos => [Resposta]
+
+========================================
+IDENTIFICAÇÃO
+========================================
+
+Grupo: [Resposta]
+
+========================================
+1. REVISÃO DO MODELO INICIAL
+========================================
+Foi possível melhorar a abordagem da Fase 1?
+[ ] Sim   [ ] Não
+
+Que melhorias foram introduzidas?
+[
+Melhoria 1:
+Melhoria 2:
+]
+
+========================================
+3. USO DE IA
+========================================
+
+Indique as ferramentas usadas e os prompts inseridos:
+
+[
+Ferramenta 1 / modelo 1:
+Prompt 1:
+Ferramenta 2 / modelo 2:
+Prompt 2:
+...
+]
+
+Das ferramentas de IA utilizadas, qual (ou quais) considera ter contribuído de forma mais útil para o desenvolvimento do trabalho?
+[
+Ferramenta 1:
+Prompt 1:
+Justificação 1:
+Ferramenta 2:
+Prompt 2:
+Justificação 2:
+...
+]
+
+Que limitações ou problemas foram identificados nas respostas IA obtidas?
+[Resposta]
+
+Houve sugestões dadas por IA que decidiram NÃO utilizar?
+[
+Sugestão:
+Porque foi rejeitada:
+Problema identificado:
+]
+
+Como validaram se as sugestões da IA estavam corretas?
+[
+Estratégia 1:
+Estratégia 2:
+...
+]
+
+O que aprenderam após utilizar IA que não tinham considerado inicialmente?
+[
+Aprendizagem 1:
+Aprendizagem 2:
+...
+]
+
+Que alternativas consideraram e que acabaram por não ser escolhidas? (e porquê?)
+[
+Alternativa:
+Vantagem:
+Desvantagem:
+Motivo da rejeição:
+]
+
+Que limitações ou fragilidades ainda existem na solução proposta?
+[Resposta]
+
+Classifique a confiança que teve nas respostas da IA:
+[ ] Baixa
+[ ] Média
+[ ] Elevada
+Porquê?
+[Resposta]
+
+========================================
+4. DISCUSSÃO
+========================================
+
+Indique o grau de confiança na solução proposta:
+
+[ ] Baixo
+[ ] Médio
+[ ] Elevado
+
+Justifique:
+[Resposta]

@@ -1,0 +1,2 @@
+Compilar com a opção -pthread: 
+gcc -g –Wall -pthread nome.c –o nomeprog

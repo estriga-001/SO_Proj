@@ -1,0 +1,92 @@
+PROJETO SO – FASE 2 (COM INTERNET / IA)
+
+As respostas devem ser escritas apenas dentro dos parêntesis retos => [Resposta]
+
+========================================
+IDENTIFICAÇÃO
+========================================
+
+Grupo: [Diogo — Projeto Individual]
+
+========================================
+1. REVISÃO DO MODELO INICIAL
+========================================
+Foi possível melhorar a abordagem da Fase 1?
+[X] Sim   [ ] Não
+
+Que melhorias foram introduzidas?
+[
+Melhoria 1: Reorganização completa da estrutura do projeto com separação clara entre src/, build/, bin/, docs/, subjects/ e entrega/. Na fase 1 a estrutura era inexistente.
+Melhoria 2: Uso de pthread_mutex_t e pthread_cond_t com PTHREAD_PROCESS_SHARED em vez de semáforos POSIX, garantindo sincronização robusta entre processos sem espera ativa.
+]
+
+========================================
+3. USO DE IA
+========================================
+
+Indique as ferramentas usadas e os prompts inseridos:
+
+[
+Ferramenta 1 / modelo 1: Antigravity (Claude Opus 4.6)
+Prompt 1: Prompt detalhado com todas as especificações do enunciado, estrutura de projeto pretendida, requisitos de sincronização, tratamento de sinais, e regras de código. O prompt incluía a arquitetura obrigatória, constantes, estruturas de dados, fluxo de sincronização, tratamento de erros, e formato de output.
+]
+
+Das ferramentas de IA utilizadas, qual (ou quais) considera ter contribuído de forma mais útil para o desenvolvimento do trabalho?
+[
+Ferramenta 1: Antigravity (Claude Opus 4.6)
+Prompt 1: Prompt completo com enunciado, modelação, requisitos técnicos, e plano de implementação faseado.
+Justificação 1: Permitiu gerar a totalidade do código de forma estruturada, com tratamento de erros consistente, sincronização correta com condition variables, e organização modular do projeto. A geração foi feita numa única sessão com planeamento prévio.
+]
+
+Que limitações ou problemas foram identificados nas respostas IA obtidas?
+[A IA pode gerar código que compila mas que tenha problemas subtis de concorrência difíceis de detetar sem execução extensiva. Foi necessário verificar manualmente que: (1) o mutex é sempre libertado antes de sleep(), (2) as condition variables são sempre usadas com while e não com if, (3) broadcast é usado em vez de signal para evitar sinais perdidos, (4) a flag terminate é verificada após cada cond_wait.]
+
+Houve sugestões dadas por IA que decidiram NÃO utilizar?
+[
+Sugestão: Uso de sem_open() com semáforos nomeados para sincronização entre processos.
+Porque foi rejeitada: Os materiais da cadeira focam-se em pthread_mutex e pthread_cond com PTHREAD_PROCESS_SHARED, que é a abordagem mais direta e clara para este cenário producer-consumer.
+Problema identificado: Semáforos nomeados requerem gestão adicional de cleanup (sem_unlink) e são menos expressivos para condições compostas como "tabuleiro vazio OU análise desativada".
+]
+
+Como validaram se as sugestões da IA estavam corretas?
+[
+Estratégia 1: Compilação com flags rigorosas (-Wall -Wextra -Werror -pedantic) para garantir ausência de problemas detetáveis pelo compilador.
+Estratégia 2: Testes manuais de todos os cenários: execução normal, Ctrl-Z (toggle análise), Ctrl-C (terminação limpa), tabuleiro cheio/vazio, e verificação de ausência de processos zombie e shared memory pendente.
+]
+
+O que aprenderam após utilizar IA que não tinham considerado inicialmente?
+[
+Aprendizagem 1: A importância de fazer a análise da amostra FORA da secção crítica (após unlock do mutex), para não bloquear o tabuleiro durante 1-3 segundos.
+Aprendizagem 2: O uso de pause() no loop principal como alternativa a sleep(), permitindo que o processo principal acorde imediatamente quando recebe um sinal.
+]
+
+Que alternativas consideraram e que acabaram por não ser escolhidas? (e porquê?)
+[
+Alternativa: Usar pipes ou message queues para comunicação entre processos em vez de memória partilhada.
+Vantagem: Pipes são mais simples de usar para comunicação unidirecional.
+Desvantagem: Não suportam acesso aleatório ao tabuleiro, não permitem partilha de estado (analysis_active, terminate), e não são adequados para o padrão producer-consumer com múltiplos produtores e consumidores.
+Motivo da rejeição: O enunciado especifica memória partilhada, e o tabuleiro com acesso circular requer mmap/shm.
+]
+
+Que limitações ou fragilidades ainda existem na solução proposta?
+[A solução pode ter tempos de resposta ligeiramente variáveis na terminação se threads estiverem a dormir em sleep() — o SIGINT interrompe o sleep, mas pode haver um pequeno atraso. Adicionalmente, o logger usa um mutex próprio que pode introduzir contenção se muitas threads tentarem imprimir simultaneamente.]
+
+Classifique a confiança que teve nas respostas da IA:
+[ ] Baixa
+[ ] Média
+[X] Elevada
+Porquê?
+[O prompt fornecido era extremamente detalhado com todas as especificações, estruturas de dados, fluxo de sincronização e regras. A IA seguiu fielmente o plano e produziu código bem estruturado, com tratamento de erros completo e comentários adequados. A compilação com -Werror e os testes manuais confirmaram a correção da solução.]
+
+========================================
+4. DISCUSSÃO
+========================================
+
+Indique o grau de confiança na solução proposta:
+
+[ ] Baixo
+[ ] Médio
+[X] Elevado
+
+Justifique:
+[A solução segue fielmente o enunciado e utiliza padrões standard de sincronização POSIX (mutex + condition variables com PTHREAD_PROCESS_SHARED). O código compila sem warnings com flags rigorosas, trata todos os erros de chamadas de sistema, evita espera ativa, previne deadlocks (análise fora da secção crítica, verificação de terminate após cond_wait), e garante terminação limpa sem processos zombie ou recursos pendentes. A arquitetura é modular e bem documentada.]
