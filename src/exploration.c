@@ -49,8 +49,12 @@ void run_exploration(shared_data_t *shared)
             perror("[ERRO] pthread_create (drone) falhou");
             fprintf(stderr, "[ERRO] Nao foi possivel criar drone %d\n", i + 1);
             /* Terminar as threads já criadas */
+            sem_wait(&shared->sem_mutex);
             shared->terminate = TRUE;
-            pthread_cond_broadcast(&shared->can_deposit);
+            sem_post(&shared->sem_mutex);
+            for (int k = 0; k < NUM_DRONES; k++) {
+                sem_post(&shared->sem_empty);
+            }
             for (int j = 0; j < i; j++) {
                 pthread_join(threads[j], NULL);
             }

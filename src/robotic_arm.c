@@ -46,40 +46,58 @@ void *analyzer_thread(void *arg)
 
     while (1) {
         /* ---- Secção crítica: retirar amostra do tabuleiro ---- */
-        if (pthread_mutex_lock(&shared->mutex) != 0) {
-            perror("[ERRO] Analisador: pthread_mutex_lock falhou");
+        /* ---- Secção crítica: retirar amostra do tabuleiro ---- */
+        
+        // Verificar se o tabuleiro está vazio para incrementar estatísticas
+        if (sem_trywait(&shared->sem_full) != 0) {
+            if (shared->analysis_active) {
+                sem_wait(&shared->sem_mutex);
+                shared->total_wait_empty++;
+                sem_post(&shared->sem_mutex);
+            }
+            
+            // Aguarda amostra (bloqueante, sem espera ativa)
+            sem_wait(&shared->sem_full);
+        }
+
+        /* Se o sistema estiver a terminar, propagamos e saímos */
+        if (shared->terminate) {
+            sem_post(&shared->sem_full); // Propagar
             break;
         }
 
-        /* Esperar enquanto (vazio OU análise desativada) e não terminar */
-        while (!shared->terminate &&
-               (shared->count == 0 || !shared->analysis_active)) {
+        if (sem_wait(&shared->sem_mutex) != 0) {
+            perror("[ERRO] Analisador: sem_wait (sem_mutex) falhou");
+            break;
+        }
 
-            /* Mensagem de standby (apenas uma vez por ciclo) */
-            if (!shared->analysis_active && !logged_standby) {
+        if (shared->terminate) {
+            sem_post(&shared->sem_mutex);
+            sem_post(&shared->sem_full);
+            break;
+        }
+
+        // Se a análise estiver desativada (standby), não podemos processar
+        if (!shared->analysis_active) {
+            if (!logged_standby) {
                 log_analyzer(id, "Sistema de analise em standby.");
                 logged_standby = 1;
             }
-
-            if (shared->count == 0 && shared->analysis_active) {
-                shared->total_wait_empty++;
-            }
-
-            if (pthread_cond_wait(&shared->can_analyze, &shared->mutex) != 0) {
-                perror("[ERRO] Analisador: pthread_cond_wait falhou");
-                pthread_mutex_unlock(&shared->mutex);
-                return NULL;
-            }
+            shared->num_waiting_analysis++;
+            
+            // Liberta a exclusão mútua e devolve o item à contagem sem_full
+            sem_post(&shared->sem_mutex);
+            sem_post(&shared->sem_full);
+            
+            // Aguarda sinal de ativação no sem_analysis
+            sem_wait(&shared->sem_analysis);
+            
+            // Reinicia o loop para re-tentar obter uma amostra
+            continue;
         }
 
         /* Reset da flag de standby quando volta a analisar */
         logged_standby = 0;
-
-        /* Verificar se devemos terminar */
-        if (shared->terminate) {
-            pthread_mutex_unlock(&shared->mutex);
-            break;
-        }
 
         /* ---- Retirar amostra do tabuleiro ---- */
         sample = shared->board[shared->out];
@@ -89,13 +107,13 @@ void *analyzer_thread(void *arg)
         log_analyzer(id, "Amostra %d retirada do tabuleiro. Ocupacao: %d/%d.",
                      sample.id, shared->count, BOARD_CAPACITY);
 
-        /* ---- Sinalizar drones que há espaço disponível ---- */
-        if (pthread_cond_broadcast(&shared->can_deposit) != 0) {
-            perror("[ERRO] Analisador: pthread_cond_broadcast falhou");
+        if (sem_post(&shared->sem_mutex) != 0) {
+            perror("[ERRO] Analisador: sem_post (sem_mutex) falhou");
         }
 
-        if (pthread_mutex_unlock(&shared->mutex) != 0) {
-            perror("[ERRO] Analisador: pthread_mutex_unlock falhou");
+        /* ---- Sinalizar drones que há espaço disponível ---- */
+        if (sem_post(&shared->sem_empty) != 0) {
+            perror("[ERRO] Analisador: sem_post (sem_empty) falhou");
         }
 
         /* ---- Analisar amostra FORA da secção crítica ---- */
@@ -108,15 +126,15 @@ void *analyzer_thread(void *arg)
         sleep((unsigned int)analysis_time);
 
         /* ---- Atualizar contador de analisadas (secção crítica breve) ---- */
-        if (pthread_mutex_lock(&shared->mutex) != 0) {
-            perror("[ERRO] Analisador: pthread_mutex_lock (stats) falhou");
+        if (sem_wait(&shared->sem_mutex) != 0) {
+            perror("[ERRO] Analisador: sem_wait (sem_mutex) falhou");
             break;
         }
 
         shared->total_analyzed++;
 
-        if (pthread_mutex_unlock(&shared->mutex) != 0) {
-            perror("[ERRO] Analisador: pthread_mutex_unlock (stats) falhou");
+        if (sem_post(&shared->sem_mutex) != 0) {
+            perror("[ERRO] Analisador: sem_post (sem_mutex) falhou");
         }
 
         log_analyzer(id, "Amostra %d analisada e descartada.", sample.id);

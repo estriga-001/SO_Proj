@@ -50,25 +50,33 @@ void *drone_thread(void *arg)
         }
 
         /* ---- Secção crítica: depositar amostra no tabuleiro ---- */
-        if (pthread_mutex_lock(&shared->mutex) != 0) {
-            perror("[ERRO] Drone: pthread_mutex_lock falhou");
+        
+        /* Verificar se o tabuleiro está cheio para incrementar estatísticas */
+        if (sem_trywait(&shared->sem_empty) != 0) {
+            sem_wait(&shared->sem_mutex);
+            shared->total_wait_full++;
+            sem_post(&shared->sem_mutex);
+
+            log_drone(id, "Tabuleiro cheio. A aguardar espaco...");
+            
+            // Aguarda slot livre (bloqueante, sem espera ativa)
+            sem_wait(&shared->sem_empty);
+        }
+
+        /* Se o sistema estiver a terminar, propagamos e saímos */
+        if (shared->terminate) {
+            sem_post(&shared->sem_empty); // Propagar
             break;
         }
 
-        /* Esperar enquanto tabuleiro cheio e sistema não a terminar */
-        while (shared->count == BOARD_CAPACITY && !shared->terminate) {
-            log_drone(id, "Tabuleiro cheio. A aguardar espaco...");
-            shared->total_wait_full++;
-            if (pthread_cond_wait(&shared->can_deposit, &shared->mutex) != 0) {
-                perror("[ERRO] Drone: pthread_cond_wait falhou");
-                pthread_mutex_unlock(&shared->mutex);
-                return NULL;
-            }
+        if (sem_wait(&shared->sem_mutex) != 0) {
+            perror("[ERRO] Drone: sem_wait (sem_mutex) falhou");
+            break;
         }
 
-        /* Verificar se devemos terminar */
         if (shared->terminate) {
-            pthread_mutex_unlock(&shared->mutex);
+            sem_post(&shared->sem_mutex);
+            sem_post(&shared->sem_empty);
             break;
         }
 
@@ -88,13 +96,13 @@ void *drone_thread(void *arg)
                       "Ocupacao: %d/%d.",
                   sample.id, shared->count, BOARD_CAPACITY);
 
-        /* ---- Sinalizar analisadores que há amostra disponível ---- */
-        if (pthread_cond_broadcast(&shared->can_analyze) != 0) {
-            perror("[ERRO] Drone: pthread_cond_broadcast falhou");
+        if (sem_post(&shared->sem_mutex) != 0) {
+            perror("[ERRO] Drone: sem_post (sem_mutex) falhou");
         }
 
-        if (pthread_mutex_unlock(&shared->mutex) != 0) {
-            perror("[ERRO] Drone: pthread_mutex_unlock falhou");
+        /* ---- Sinalizar analisadores que há amostra disponível ---- */
+        if (sem_post(&shared->sem_full) != 0) {
+            perror("[ERRO] Drone: sem_post (sem_full) falhou");
         }
     }
 

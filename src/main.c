@@ -123,8 +123,12 @@ int main(void)
     if (pid_analysis == -1) {
         perror("[ERRO FATAL] fork (analise) falhou");
         /* Terminar o processo de exploração já criado */
+        sem_wait(&shared->sem_mutex);
         shared->terminate = TRUE;
-        pthread_cond_broadcast(&shared->can_deposit);
+        sem_post(&shared->sem_mutex);
+        for (int i = 0; i < NUM_DRONES; i++) {
+            sem_post(&shared->sem_empty);
+        }
         kill(pid_exploration, SIGINT);
         waitpid(pid_exploration, &status, 0);
         cleanup_shared_memory(shared);
@@ -174,8 +178,8 @@ int main(void)
             got_sigtstp = 0;
 
             /* Secção crítica: alterar estado da análise */
-            if (pthread_mutex_lock(&shared->mutex) != 0) {
-                perror("[ERRO] main: pthread_mutex_lock falhou");
+            if (sem_wait(&shared->sem_mutex) != 0) {
+                perror("[ERRO] main: sem_wait (sem_mutex) falhou");
                 break;
             }
 
@@ -185,14 +189,19 @@ int main(void)
             if (shared->analysis_active) {
                 log_main("SIGTSTP recebido. Sistema de analise ATIVADO.");
                 /* Acordar braços que estavam em standby */
-                pthread_cond_broadcast(&shared->can_analyze);
+                int to_wake = shared->num_waiting_analysis;
+                shared->num_waiting_analysis = 0;
+                if (sem_post(&shared->sem_mutex) != 0) {
+                    perror("[ERRO] main: sem_post (sem_mutex) falhou");
+                }
+                for (int i = 0; i < to_wake; i++) {
+                    sem_post(&shared->sem_analysis);
+                }
             } else {
                 log_main("SIGTSTP recebido. Sistema de analise DESATIVADO.");
-            }
-
-            if (pthread_mutex_unlock(&shared->mutex) != 0) {
-                perror("[ERRO] main: pthread_mutex_unlock falhou");
-                break;
+                if (sem_post(&shared->sem_mutex) != 0) {
+                    perror("[ERRO] main: sem_post (sem_mutex) falhou");
+                }
             }
         }
 
@@ -209,18 +218,30 @@ int main(void)
     log_main("SIGINT recebido. A terminar sistema...");
 
     /* ---- Sinalizar todos os módulos para terminar ---- */
-    if (pthread_mutex_lock(&shared->mutex) != 0) {
-        perror("[ERRO] main: pthread_mutex_lock (terminate) falhou");
+    if (sem_wait(&shared->sem_mutex) != 0) {
+        perror("[ERRO] main: sem_wait (sem_mutex) falhou");
     }
 
     shared->terminate = TRUE;
 
-    /* Acordar todas as threads que possam estar bloqueadas */
-    pthread_cond_broadcast(&shared->can_deposit);
-    pthread_cond_broadcast(&shared->can_analyze);
+    /* Acordar braços em standby no sem_analysis */
+    int to_wake = shared->num_waiting_analysis;
+    shared->num_waiting_analysis = 0;
 
-    if (pthread_mutex_unlock(&shared->mutex) != 0) {
-        perror("[ERRO] main: pthread_mutex_unlock (terminate) falhou");
+    if (sem_post(&shared->sem_mutex) != 0) {
+        perror("[ERRO] main: sem_post (sem_mutex) falhou");
+    }
+
+    for (int i = 0; i < to_wake; i++) {
+        sem_post(&shared->sem_analysis);
+    }
+
+    /* Acordar todos os drones e analisadores pendentes em sem_empty e sem_full */
+    for (int i = 0; i < NUM_DRONES; i++) {
+        sem_post(&shared->sem_empty);
+    }
+    for (int i = 0; i < NUM_ANALYZERS; i++) {
+        sem_post(&shared->sem_full);
     }
 
     /* Enviar SIGINT aos processos filhos para garantir que acordam de sleep() */

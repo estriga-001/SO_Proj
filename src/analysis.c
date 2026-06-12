@@ -54,8 +54,18 @@ void run_analysis(shared_data_t *shared)
             perror("[ERRO] pthread_create (analisador) falhou");
             fprintf(stderr, "[ERRO] Nao foi possivel criar analisador %d\n", i + 1);
             /* Terminar as threads já criadas */
+            sem_wait(&shared->sem_mutex);
             shared->terminate = TRUE;
-            pthread_cond_broadcast(&shared->can_analyze);
+            int to_wake = shared->num_waiting_analysis;
+            shared->num_waiting_analysis = 0;
+            sem_post(&shared->sem_mutex);
+
+            for (int k = 0; k < to_wake; k++) {
+                sem_post(&shared->sem_analysis);
+            }
+            for (int k = 0; k < NUM_ANALYZERS; k++) {
+                sem_post(&shared->sem_full);
+            }
             for (int j = 0; j < i; j++) {
                 pthread_join(threads[j], NULL);
             }

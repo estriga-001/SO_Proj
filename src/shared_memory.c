@@ -32,8 +32,6 @@ shared_data_t *init_shared_memory(void)
 {
     int fd;
     shared_data_t *shared;
-    pthread_mutexattr_t mutex_attr;
-    pthread_condattr_t cond_attr;
 
     /* ---- Remover SHM anterior caso exista ---- */
     shm_unlink(SHM_NAME);
@@ -85,70 +83,42 @@ shared_data_t *init_shared_memory(void)
     shared->total_wait_full = 0;
     shared->total_wait_empty = 0;
 
-    /* ---- Inicializar mutex com PTHREAD_PROCESS_SHARED ---- */
-    if (pthread_mutexattr_init(&mutex_attr) != 0) {
-        perror("[ERRO] pthread_mutexattr_init falhou");
+    /* ---- Inicializar Semáforos com PTHREAD_PROCESS_SHARED ---- */
+    if (sem_init(&shared->sem_mutex, 1, 1) != 0) {
+        perror("[ERRO] sem_init (sem_mutex) falhou");
         munmap(shared, sizeof(shared_data_t));
         shm_unlink(SHM_NAME);
         return NULL;
     }
 
-    if (pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED) != 0) {
-        perror("[ERRO] pthread_mutexattr_setpshared falhou");
-        pthread_mutexattr_destroy(&mutex_attr);
+    if (sem_init(&shared->sem_empty, 1, BOARD_CAPACITY) != 0) {
+        perror("[ERRO] sem_init (sem_empty) falhou");
+        sem_destroy(&shared->sem_mutex);
         munmap(shared, sizeof(shared_data_t));
         shm_unlink(SHM_NAME);
         return NULL;
     }
 
-    if (pthread_mutex_init(&shared->mutex, &mutex_attr) != 0) {
-        perror("[ERRO] pthread_mutex_init falhou");
-        pthread_mutexattr_destroy(&mutex_attr);
+    if (sem_init(&shared->sem_full, 1, 0) != 0) {
+        perror("[ERRO] sem_init (sem_full) falhou");
+        sem_destroy(&shared->sem_empty);
+        sem_destroy(&shared->sem_mutex);
         munmap(shared, sizeof(shared_data_t));
         shm_unlink(SHM_NAME);
         return NULL;
     }
 
-    pthread_mutexattr_destroy(&mutex_attr);
-
-    /* ---- Inicializar condition variables com PTHREAD_PROCESS_SHARED ---- */
-    if (pthread_condattr_init(&cond_attr) != 0) {
-        perror("[ERRO] pthread_condattr_init falhou");
-        pthread_mutex_destroy(&shared->mutex);
+    if (sem_init(&shared->sem_analysis, 1, 0) != 0) {
+        perror("[ERRO] sem_init (sem_analysis) falhou");
+        sem_destroy(&shared->sem_full);
+        sem_destroy(&shared->sem_empty);
+        sem_destroy(&shared->sem_mutex);
         munmap(shared, sizeof(shared_data_t));
         shm_unlink(SHM_NAME);
         return NULL;
     }
 
-    if (pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED) != 0) {
-        perror("[ERRO] pthread_condattr_setpshared falhou");
-        pthread_condattr_destroy(&cond_attr);
-        pthread_mutex_destroy(&shared->mutex);
-        munmap(shared, sizeof(shared_data_t));
-        shm_unlink(SHM_NAME);
-        return NULL;
-    }
-
-    if (pthread_cond_init(&shared->can_deposit, &cond_attr) != 0) {
-        perror("[ERRO] pthread_cond_init (can_deposit) falhou");
-        pthread_condattr_destroy(&cond_attr);
-        pthread_mutex_destroy(&shared->mutex);
-        munmap(shared, sizeof(shared_data_t));
-        shm_unlink(SHM_NAME);
-        return NULL;
-    }
-
-    if (pthread_cond_init(&shared->can_analyze, &cond_attr) != 0) {
-        perror("[ERRO] pthread_cond_init (can_analyze) falhou");
-        pthread_cond_destroy(&shared->can_deposit);
-        pthread_condattr_destroy(&cond_attr);
-        pthread_mutex_destroy(&shared->mutex);
-        munmap(shared, sizeof(shared_data_t));
-        shm_unlink(SHM_NAME);
-        return NULL;
-    }
-
-    pthread_condattr_destroy(&cond_attr);
+    shared->num_waiting_analysis = 0;
 
     log_main("Shared memory criada e inicializada.");
     return shared;
@@ -207,16 +177,20 @@ void cleanup_shared_memory(shared_data_t *shared)
     log_main("===========================");
 
     /* ---- Destruir mecanismos de sincronização ---- */
-    if (pthread_cond_destroy(&shared->can_analyze) != 0) {
-        perror("[AVISO] pthread_cond_destroy (can_analyze) falhou");
+    if (sem_destroy(&shared->sem_analysis) != 0) {
+        perror("[AVISO] sem_destroy (sem_analysis) falhou");
     }
 
-    if (pthread_cond_destroy(&shared->can_deposit) != 0) {
-        perror("[AVISO] pthread_cond_destroy (can_deposit) falhou");
+    if (sem_destroy(&shared->sem_full) != 0) {
+        perror("[AVISO] sem_destroy (sem_full) falhou");
     }
 
-    if (pthread_mutex_destroy(&shared->mutex) != 0) {
-        perror("[AVISO] pthread_mutex_destroy falhou");
+    if (sem_destroy(&shared->sem_empty) != 0) {
+        perror("[AVISO] sem_destroy (sem_empty) falhou");
+    }
+
+    if (sem_destroy(&shared->sem_mutex) != 0) {
+        perror("[AVISO] sem_destroy (sem_mutex) falhou");
     }
 
     /* ---- Desmapear e remover memória partilhada ---- */

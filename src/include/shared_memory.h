@@ -11,6 +11,7 @@
 #define SHARED_MEMORY_H
 
 #include <pthread.h>
+#include <semaphore.h>
 #include <time.h>
 #include "macros.h"
 
@@ -55,10 +56,12 @@ typedef struct {
     int total_wait_full;            /**< Total de esperas por tabuleiro cheio */
     int total_wait_empty;           /**< Total de esperas por tabuleiro vazio */
 
-    /* --- Sincronização (PTHREAD_PROCESS_SHARED) --- */
-    pthread_mutex_t mutex;          /**< Mutex para acesso exclusivo ao tabuleiro */
-    pthread_cond_t can_deposit;     /**< Condição: há espaço para depositar */
-    pthread_cond_t can_analyze;     /**< Condição: há amostras para analisar */
+    /* --- Sincronização por Semáforos (PTHREAD_PROCESS_SHARED) --- */
+    sem_t sem_mutex;                /**< Semáforo para exclusão mútua no acesso ao tabuleiro (inicializado a 1) */
+    sem_t sem_empty;                /**< Semáforo para contar slots livres no tabuleiro (inicializado a BOARD_CAPACITY) */
+    sem_t sem_full;                 /**< Semáforo para contar amostras disponíveis no tabuleiro (inicializado a 0) */
+    sem_t sem_analysis;             /**< Semáforo para suspender braços robóticos em standby/desativados (inicializado a 0) */
+    int num_waiting_analysis;       /**< Contador de braços robóticos à espera no sem_analysis */
 } shared_data_t;
 
 /* ============================================================
